@@ -7,6 +7,7 @@
 #include <queue>
 #include <atomic>
 #include <mpi.h>
+// #include <mpicxx.h>
 #include <map>
 
 int total_nodes, mpi_rank;
@@ -90,6 +91,10 @@ bool validate_block_for_chain(const Block *rBlock, const MPI_Status *status){
 void broadcast_block(const Block *block){
   //No enviar a mí mismo
   //TODO: Completar
+
+  for( int i = 1; i < total_nodes; i++) {
+    MPI_Send(block, 1, *MPI_BLOCK,  (mpi_rank + i) % total_nodes, TAG_NEW_BLOCK, MPI_COMM_WORLD );
+  }
 }
 
 //Proof of work
