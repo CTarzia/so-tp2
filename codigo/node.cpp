@@ -27,7 +27,7 @@ bool verificar_y_migrar_cadena(const Block *rBlock, const MPI_Status *status){
   int source = status->MPI_SOURCE;
 
 
-  MPI_Send(NULL, 0, MPI_BYTE,  source, TAG_CHAIN_HASH, MPI_COMM_WORLD );
+  MPI_Send(rBlock->block_hash, HASH_SIZE, MPI_CHAR,  source, TAG_CHAIN_HASH, MPI_COMM_WORLD );
 
 
   Block *blockchain = new Block[VALIDATION_BLOCKS];
@@ -44,7 +44,7 @@ bool verificar_y_migrar_cadena(const Block *rBlock, const MPI_Status *status){
   //DONE: Verificar que los bloques recibidos
   //sean válidos y se puedan acoplar a la cadena
   bool result = false;
-  
+
   if (blockchain[0].block_hash == rBlock->block_hash && blockchain[0].index == rBlock->index) {
     string hash_buf = string(HASH_SIZE, ' ');
     block_to_hash(&blockchain[0], hash_buf);
@@ -231,17 +231,44 @@ int node(){
 
   pthread_create(&thread, NULL, proof_of_work, NULL);
 
+  Block rBlock;
+  char hash_buf[HASH_SIZE];
+
+  Block* blockchain = new Block[VALIDATION_BLOCKS];
+  MPI_Status status;
+
   while(true){
 
-      //TODO: Recibir mensajes de otros nodos
+      //DONE: Recibir mensajes de otros nodos
+      MPI_Probe(0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 
-      //TODO: Si es un mensaje de nuevo bloque, llamar a la función
-      // broadcast.lock()
+      //DONE: Si es un mensaje de nuevo bloque, llamar a la función
       // validate_block_for_chain con el bloque recibido y el estado de MPI
-      // broadcast.unlock();
+      if (status.MPI_TAG == TAG_NEW_BLOCK) {
+        broadcast.lock();
 
-      //TODO: Si es un mensaje de pedido de cadena,
+        MPI_Recv(&rBlock, 1, *MPI_BLOCK, MPI_ANY_SOURCE, TAG_NEW_BLOCK, MPI_COMM_WORLD, &status);
+        validate_block_for_chain(&rBlock, &status);
+
+        broadcast.unlock();
+      //DONE: Si es un mensaje de pedido de cadena,
       //responderlo enviando los bloques correspondientes
+      } else if (status.MPI_TAG == TAG_CHAIN_HASH) {
+        MPI_Recv(&hash_buf, HASH_SIZE, MPI_CHAR, MPI_ANY_SOURCE, TAG_CHAIN_HASH, MPI_COMM_WORLD, &status);
+
+
+        blockchain[0] = node_blocks[hash_buf];
+
+        int count = min(VALIDATION_BLOCKS , (int) blockchain[0].index );
+        for (int i = 1; i < count; i++)
+        {
+          blockchain[i] = node_blocks[blockchain[i-1].previous_block_hash];
+        }
+
+        MPI_Send(blockchain, count, *MPI_BLOCK, status.MPI_SOURCE, TAG_CHAIN_RESPONSE, MPI_COMM_WORLD );
+
+      }
+
 
 
   }
