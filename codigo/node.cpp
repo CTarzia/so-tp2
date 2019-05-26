@@ -22,12 +22,10 @@ mutex broadcast;
 bool verificar_y_migrar_cadena(const Block *rBlock, const MPI_Status *status){
 
   //DONE: Enviar mensaje TAG_CHAIN_HASH
-
-
   int source = status->MPI_SOURCE;
 
-
   MPI_Send(rBlock->block_hash, HASH_SIZE, MPI_CHAR,  source, TAG_CHAIN_HASH, MPI_COMM_WORLD );
+  printf("[%d] Pedi bloques a %d\n", mpi_rank,source);
 
 
   Block *blockchain = new Block[VALIDATION_BLOCKS];
@@ -39,7 +37,6 @@ bool verificar_y_migrar_cadena(const Block *rBlock, const MPI_Status *status){
   MPI_Recv(blockchain, VALIDATION_BLOCKS, *MPI_BLOCK, source, TAG_CHAIN_RESPONSE, MPI_COMM_WORLD, &st);
   MPI_Get_count(&st, *MPI_BLOCK, &count);
 
-  printf("Recibi %d bloques\n", count);
 
   //DONE: Verificar que los bloques recibidos
   //sean válidos y se puedan acoplar a la cadena
@@ -77,6 +74,7 @@ bool verificar_y_migrar_cadena(const Block *rBlock, const MPI_Status *status){
     }
   } 
 
+   printf("[%d] Recibi %d bloques result=%d\n", mpi_rank,count,result);
   delete []blockchain;
   return result;
 }
@@ -166,7 +164,7 @@ void* proof_of_work(void *ptr){
     string hash_hex_str;
     Block block;
     unsigned int mined_blocks = 0;
-    while(true){
+    while(last_block_in_chain->index < MAX_BLOCKS){
 
       block = *last_block_in_chain;
 
@@ -183,8 +181,10 @@ void* proof_of_work(void *ptr){
       //Hashear el contenido (con el nuevo nonce)
       block_to_hash(&block,hash_hex_str);
 
+
       //Contar la cantidad de ceros iniciales (con el nuevo nonce)
       if(solves_problem(hash_hex_str)){
+      printf("[%d] Resuelve el problema el hash: last_index=%d\n", mpi_rank, last_block_in_chain->index);
 
           //Verifico que no haya cambiado mientras calculaba
           broadcast.lock();
@@ -202,6 +202,9 @@ void* proof_of_work(void *ptr){
       }
 
     }
+
+  printf("[%d] Termine\n", mpi_rank);
+
 
     return NULL;
 }
@@ -236,26 +239,29 @@ int node(){
 
   Block* blockchain = new Block[VALIDATION_BLOCKS];
   MPI_Status status;
+  int flag;
 
   while(true){
 
       //DONE: Recibir mensajes de otros nodos
-      MPI_Probe(0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-
+      MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag,  &status);
       //DONE: Si es un mensaje de nuevo bloque, llamar a la función
       // validate_block_for_chain con el bloque recibido y el estado de MPI
-      if (status.MPI_TAG == TAG_NEW_BLOCK) {
+
+      if (flag  && status.MPI_TAG == TAG_NEW_BLOCK) {
         broadcast.lock();
 
         MPI_Recv(&rBlock, 1, *MPI_BLOCK, MPI_ANY_SOURCE, TAG_NEW_BLOCK, MPI_COMM_WORLD, &status);
+
+        printf("[%d] Bloque recibido desde %d\n", mpi_rank, status.MPI_SOURCE);
         validate_block_for_chain(&rBlock, &status);
 
         broadcast.unlock();
       //DONE: Si es un mensaje de pedido de cadena,
       //responderlo enviando los bloques correspondientes
-      } else if (status.MPI_TAG == TAG_CHAIN_HASH) {
+      } else if (flag  && status.MPI_TAG == TAG_CHAIN_HASH) {
+        printf("[%d] Recibi un pedido de HASH_CHAIN de %d\n", mpi_rank, status.MPI_SOURCE);
         MPI_Recv(&hash_buf, HASH_SIZE, MPI_CHAR, MPI_ANY_SOURCE, TAG_CHAIN_HASH, MPI_COMM_WORLD, &status);
-
 
         blockchain[0] = node_blocks[hash_buf];
 
@@ -266,14 +272,13 @@ int node(){
         }
 
         MPI_Send(blockchain, count, *MPI_BLOCK, status.MPI_SOURCE, TAG_CHAIN_RESPONSE, MPI_COMM_WORLD );
+        printf("[%d] Envie un HASH_RESPONSE a %d\n", mpi_rank, status.MPI_SOURCE);
 
       }
-
-
-
   }
 
   pthread_join(thread, NULL);
+
 
   delete last_block_in_chain;
   return 0;
