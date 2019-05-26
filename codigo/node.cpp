@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <queue>
 #include <atomic>
+#include <mutex>
 #include <mpi.h>
 // #include <mpicxx.h>
 #include <map>
@@ -13,6 +14,8 @@
 int total_nodes, mpi_rank;
 Block *last_block_in_chain;
 map<string,Block> node_blocks;
+
+mutex broadcast;
 
 //Cuando me llega una cadena adelantada, y tengo que pedir los nodos que me faltan
 //Si nos separan más de VALIDATION_BLOCKS bloques de distancia entre las cadenas, se descarta por seguridad
@@ -124,6 +127,7 @@ void* proof_of_work(void *ptr){
       if(solves_problem(hash_hex_str)){
 
           //Verifico que no haya cambiado mientras calculaba
+          broadcast.lock();
           if(last_block_in_chain->index < block.index){
             mined_blocks += 1;
             *last_block_in_chain = block;
@@ -134,6 +138,7 @@ void* proof_of_work(void *ptr){
             //TODO: Mientras comunico, no responder mensajes de nuevos nodos
             broadcast_block(last_block_in_chain);
           }
+          broadcast.unlock();
       }
 
     }
@@ -162,18 +167,26 @@ int node(){
   memset(last_block_in_chain->previous_block_hash,0,HASH_SIZE);
 
   //TODO: Crear thread para minar
+  pthread_t thread;
+
+  pthread_create(&thread, NULL, proof_of_work, NULL);
 
   while(true){
 
       //TODO: Recibir mensajes de otros nodos
 
       //TODO: Si es un mensaje de nuevo bloque, llamar a la función
+      // broadcast.lock()
       // validate_block_for_chain con el bloque recibido y el estado de MPI
+      // broadcast.unlock();
 
       //TODO: Si es un mensaje de pedido de cadena,
       //responderlo enviando los bloques correspondientes
 
+
   }
+
+  pthread_join(thread, NULL);
 
   delete last_block_in_chain;
   return 0;
