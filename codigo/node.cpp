@@ -51,9 +51,9 @@ bool verificar_y_migrar_cadena(const Block *rBlock, const MPI_Status *status){
       result = true;
 
       while (
-        !node_blocks.count(blockchain[i].block_hash) 
+        !node_blocks.count(blockchain[i].block_hash)
         && blockchain[i].index != 1
-        && i+1 < count 
+        && i+1 < count
         && blockchain[i].previous_block_hash == blockchain[i+1].block_hash
         && blockchain[i].index == blockchain[i+1].index + 1
       ) {
@@ -63,7 +63,7 @@ bool verificar_y_migrar_cadena(const Block *rBlock, const MPI_Status *status){
       if (node_blocks.count(blockchain[i].block_hash) || blockchain[i].index == 1) {
         // copio  blockchain
 
-        *last_block_in_chain = blockchain[0]; 
+        *last_block_in_chain = blockchain[0];
 
         for (int j = 1; j < i; j++) {
           node_blocks[blockchain[j].block_hash] = blockchain[j];
@@ -72,7 +72,7 @@ bool verificar_y_migrar_cadena(const Block *rBlock, const MPI_Status *status){
         result = true;
       }
     }
-  } 
+  }
 
    printf("[%d] Recibi %d bloques result=%d\n", mpi_rank,count,result);
   delete []blockchain;
@@ -101,9 +101,9 @@ bool validate_block_for_chain(const Block *rBlock, const MPI_Status *status){
     //el siguiente a mí último bloque actual,
     //y el bloque anterior apuntado por el recibido es mí último actual,
     //entonces lo agrego como nuevo último.
-    if (rBlock->index == last_block_in_chain->index + 1 
+    if (rBlock->index == last_block_in_chain->index + 1
      && rBlock->previous_block_hash == last_block_in_chain->block_hash) {
-      *last_block_in_chain = *rBlock;      
+      *last_block_in_chain = *rBlock;
       printf("[%d] Agregado a la lista bloque con index %d enviado por %d \n", mpi_rank, rBlock->index,status->MPI_SOURCE);
       return true;
     }
@@ -112,7 +112,7 @@ bool validate_block_for_chain(const Block *rBlock, const MPI_Status *status){
     //el siguiente a mí último bloque actual,
     //pero el bloque anterior apuntado por el recibido no es mí último actual,
     //entonces hay una blockchain más larga que la mía.
-    if (rBlock->index == last_block_in_chain->index + 1 
+    if (rBlock->index == last_block_in_chain->index + 1
      && rBlock->previous_block_hash != last_block_in_chain->block_hash) {
       printf("[%d] Perdí la carrera por uno (%d) contra %d \n", mpi_rank, rBlock->index, status->MPI_SOURCE);
       bool res = verificar_y_migrar_cadena(rBlock,status);
@@ -239,16 +239,15 @@ int node(){
 
   Block* blockchain = new Block[VALIDATION_BLOCKS];
   MPI_Status status;
-  int flag;
 
   while(true){
 
       //DONE: Recibir mensajes de otros nodos
-      MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag,  &status);
+      MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD,   &status);
+
       //DONE: Si es un mensaje de nuevo bloque, llamar a la función
       // validate_block_for_chain con el bloque recibido y el estado de MPI
-
-      if (flag  && status.MPI_TAG == TAG_NEW_BLOCK) {
+      if ( status.MPI_TAG == TAG_NEW_BLOCK) {
         broadcast.lock();
 
         MPI_Recv(&rBlock, 1, *MPI_BLOCK, MPI_ANY_SOURCE, TAG_NEW_BLOCK, MPI_COMM_WORLD, &status);
@@ -259,7 +258,7 @@ int node(){
         broadcast.unlock();
       //DONE: Si es un mensaje de pedido de cadena,
       //responderlo enviando los bloques correspondientes
-      } else if (flag  && status.MPI_TAG == TAG_CHAIN_HASH) {
+      } else if ( status.MPI_TAG == TAG_CHAIN_HASH) {
         printf("[%d] Recibi un pedido de HASH_CHAIN de %d\n", mpi_rank, status.MPI_SOURCE);
         MPI_Recv(&hash_buf, HASH_SIZE, MPI_CHAR, MPI_ANY_SOURCE, TAG_CHAIN_HASH, MPI_COMM_WORLD, &status);
 
