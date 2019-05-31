@@ -1,0 +1,72 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{preambulo}
+
+% Paquetes utilizados
+\RequirePackage[a4paper]{geometry}
+\RequirePackage[parfill]{parskip}
+\RequirePackage[spanish,es-tabla]{babel}
+\RequirePackage[utf8]{inputenc}
+\RequirePackage{algorithmic}
+\RequirePackage{algorithm}
+\RequirePackage{amsfonts}
+\RequirePackage{amsmath}
+\RequirePackage{amssymb}
+\RequirePackage{amsthm}
+\RequirePackage{caption}
+\RequirePackage{caratula}
+\RequirePackage{enumerate}
+\RequirePackage{float}
+\RequirePackage{graphicx}
+\RequirePackage{listings}
+\RequirePackage{pdfpages}
+\RequirePackage{subcaption}
+\RequirePackage{mathtools}
+
+% Espacio entre lineas
+\setlength{\parskip}{0.1em}
+
+
+\graphicspath{{img/},{graficos/}}
+\restylefloat{table}
+
+
+% Teoremas
+\newtheorem*{propiedad}{Propiedad}
+\newtheorem{teorema}{Teorema}
+\newtheorem{propo}{Proposición}
+\newtheorem{lemma}{Lema auxiliar}
+
+\theoremstyle{definition}
+\newtheorem{observacion}{Observación}
+\newtheorem{definicion}{Definición}
+
+\usepackage[nomove]{cite}
+\usepackage[nottoc]{tocbibind}
+\usepackage{hyperref}
+\hypersetup{
+    linktoc=all,     %set to all if you want both sections and subsections linked
+    linkcolor=blue,  %color to links
+}
+
+
+% Comandos
+\renewcommand*{\thefootnote}{(\arabic{footnote})}
+\newcommand{\reales}{\ensuremath{\mathbb{R}}}
+\newcommand{\realesextend}{\ensuremath{\tilde{\mathbb{R}}}}
+\newcommand{\naturales}{\ensuremath{\mathbb{N}}}
+\newcommand{\inv}[1]{\frac{1}{#1}}
+\newcommand{\implica}{\Rightarrow}
+\newcommand{\sucesion}[1]{(#1_n)_{n\in\naturales}}
+
+
+% Delimitadores
+\DeclarePairedDelimiter\ceil{\lceil}{\rceil}
+\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
+\DeclarePairedDelimiter\abs{\mid}{\mid}
+\DeclarePairedDelimiter\conj{\lbrace}{\rbrace}
+
+% Bibliografía
+\bibliographystyle{plain}
+
+
+
