@@ -1,5 +1,5 @@
 
-\subsection{Desarrollo}
+\section{Desarrollo}
 
 
 
@@ -11,4 +11,6 @@
 
 %¿Cómo afecta el aumento o la disminución de la dificultad del Proof-of-Work a los conflictos entre nodos y a la convergencia? Pruebe variando la constante DEFAULT_DIFFICULTY para adquirir una intuición.
 
+
+Para generar nuestro \textit{Blockchain} vamos a crear un bloque de \'indice $0$ para todos los nodos desde el que van a empezar a generar nuevos bloques. Luego cada nodo comenzar\'a a minar nuevos bloques con \'indices incrementales empezando desde el $1$. Si bien no es algo que suceda en la vida real para este tipo de algoritmos, como queremos que el nuestro termine, tenemos una cantidad m\'axima de bloques que va a tener la cadena de cada bloque. Una vez alcanzada esta cantidad, el nodo deja de producir nuevos bloques y si no le quedan mensajes por responder, termina su ejecuci\'on.
 
