@@ -54,18 +54,15 @@ bool verificar_y_migrar_cadena(const Block *rBlock, const MPI_Status *status){
   MPI_Status st;
   int count = -1;
 
-  printf("Antes de recibir\n");
 
   MPI_Recv(blockchain, VALIDATION_BLOCKS, *MPI_BLOCK, source, TAG_CHAIN_RESPONSE, MPI_COMM_WORLD, &st);
 
-  printf("Despues de recibir\n");
   MPI_Get_count(&st, *MPI_BLOCK, &count);
 
 
   //DONE: Verificar que los bloques recibidos
   //sean válidos y se puedan acoplar a la cadena
   bool result = false;
-
 
 
   if (strcmp(blockchain[0].block_hash, rBlock->block_hash) == 0 && blockchain[0].index == rBlock->index) {
@@ -101,7 +98,6 @@ bool verificar_y_migrar_cadena(const Block *rBlock, const MPI_Status *status){
     }
   }
 
-  printf("[%d] Recibi %d bloques result=%d\n", mpi_rank,count,result);
   delete []blockchain;
   return result;
 }
@@ -214,7 +210,6 @@ void* proof_of_work(void *ptr){
 
       //Contar la cantidad de ceros iniciales (con el nuevo nonce)
       if(solves_problem(hash_hex_str)){
-      printf("[%d] Resuelve el problema el hash: last_index=%d\n", mpi_rank, last_block_in_chain->index);
 
           //Verifico que no haya cambiado mientras calculaba
           broadcast.lock();
@@ -233,11 +228,10 @@ void* proof_of_work(void *ptr){
 
     }
 
-  printf("[%d] Termine\n", mpi_rank);
+  printf("[%d] Termine: mine %d bloques\n", mpi_rank, mined_blocks);
   print();
 
-
-    return NULL;
+  return NULL;
 }
 
 
@@ -255,6 +249,8 @@ int node(){
 
   string hash_hex_str;
 
+  char * initial_nonce = "0123456789";
+
   //Inicializo el primer bloque
   last_block_in_chain->index = 0;
   last_block_in_chain->node_owner_number = mpi_rank;
@@ -263,6 +259,7 @@ int node(){
   memset(last_block_in_chain->previous_block_hash,0,HASH_SIZE);
   block_to_hash(last_block_in_chain,hash_hex_str);
   strcpy(last_block_in_chain->block_hash, hash_hex_str.c_str());
+  strcpy(last_block_in_chain->nonce, initial_nonce);
   // genenerate own hash.
 
   //DONE: Crear thread para minar
@@ -275,6 +272,7 @@ int node(){
 
   Block* blockchain = new Block[VALIDATION_BLOCKS];
   MPI_Status status;
+  int flag;
 
   while(last_block_in_chain->index < MAX_BLOCKS){
 
@@ -311,11 +309,36 @@ int node(){
 
       }
 
-      // usleep(200);
+
+  }
+
+  printf("[%d] Esperando mensajes...\n", mpi_rank);
+  for (int i = 0; i  < EXTRA_TIME; i += QUANTUM){
+
+      MPI_Iprobe(MPI_ANY_SOURCE, TAG_CHAIN_HASH, MPI_COMM_WORLD, &flag,  &status);
+      if (flag) {
+          printf("[%d] Recibi un pedido de HASH_CHAIN de %d\n", mpi_rank, status.MPI_SOURCE);
+          MPI_Recv(&hash_buf, HASH_SIZE, MPI_CHAR, MPI_ANY_SOURCE, TAG_CHAIN_HASH, MPI_COMM_WORLD, &status);
+
+          blockchain[0] = node_blocks[hash_buf];
+
+          int count = min(VALIDATION_BLOCKS , (int) blockchain[0].index );
+          for (int i = 1; i < count; i++)
+          {
+              blockchain[i] = node_blocks[blockchain[i-1].previous_block_hash];
+          }
+
+          MPI_Send(blockchain, count, *MPI_BLOCK, status.MPI_SOURCE, TAG_CHAIN_RESPONSE, MPI_COMM_WORLD );
+          printf("[%d] Envie un HASH_RESPONSE a %d\n", mpi_rank, status.MPI_SOURCE);
+
+      }
+
+      usleep(QUANTUM);
   }
 
   pthread_join(thread, NULL);
 
+  printf("[%d] Mori de verdad\n", mpi_rank);
 
   delete last_block_in_chain;
   return 0;
