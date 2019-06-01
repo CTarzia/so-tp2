@@ -10,7 +10,7 @@
 % del mismo y sus soluciones.
 
 
-En este trabajo pr\'actico buscamos trabajar con sistemas distribuidos, sobre todo env\'io de mensajes utilizando la interfaz MPI. Particularmente implementaremos un \textit{Blockchain}, es decir, una cadena de bloques enlazados que busca evitar modificaciones a trav\'es de un proceso de consenso.
+En este trabajo pr\'actico buscamos trabajar con sistemas distribuidos, utilizando la interfaz de env\'io de mensajes MPI. Particularmente implementaremos un \textit{Blockchain}, es decir, una cadena de bloques enlazados que busca evitar modificaciones a trav\'es de un proceso de consenso.
 
 \subsection{Blockchain}
 El \textit{Blockchain} consiste en un conjunto de bloques enlazados como los de la Figura \ref{fig:blockchain}, en los que cada uno tiene:
@@ -24,7 +24,7 @@ El \textit{Blockchain} consiste en un conjunto de bloques enlazados como los de 
 	\item \textit{Hash del bloque}
 \end{itemize}
 
-\begin{figure}
+\begin{figure}[H]
 	\centering
 	\includegraphics[width=0.7\linewidth]{img/blockchain}
 	\caption[Representaci\'on gr\'afica de un \textit{Blockchain}.]{}
@@ -35,16 +35,8 @@ El \textit{Blockchain} consiste en un conjunto de bloques enlazados como los de 
 Para conseguir un bloque, cada nodo del sistema distribuido debe \textit{minarlo}, es decir, debe superar una prueba con un costo de c\'omputo. A esta se la llama \textit{Proof-of-Work (POW)}, y consiste en variar el campo \texttt{nonce} hasta que la representaci\'on del hash empiece con al menos la cantidad de ceros que indica \texttt{dificultad}. 
 
 \subsection{Consenso}
-Ya que el objetivo del \textit{Blockchain} es que todos los nodos tengan la misma cadena, y cada uno de ellos est\'a calculando bloques para agregar, estos deben comunicarse cada vez que generan o reciben un bloque. Para todos mantener la misma cadena, cada vez que un nodo mina un bloque exitosamente debe realizar un \textit{broadcast} a todos los dem\'as con toda la informaci\'on del mismo. Los nodos receptores deben entonces tomar una decisión a partir de \'ultimo bloque actual ($u$) y el recibido ($r$):
-\begin{itemize}
-	\item Si $r$ no es v\'alido (porque paso demasiado tiempo desde su creaci\'on hasta que lo recib\'i o el hash es inv\'alido) lo omite.
-	\item Si el \'indice de $r$ es 1 y el de $u$ es 0, lo agrega como nuevo \'ultimo y primero v\'alido.
-	\item Si el \'indice de $r$ es el siguiente al de $u$ y el bloque apuntado por $r$ es $u$ , lo agrega como nuevo \'ultimo.
-	\item Si el \'indice de $r$ es el siguiente al de $u$ y el bloque anterior apuntado por $r$ no es $u$, abandona su \textit{Blockchain} y le pide al due\~no de $r$ la suya para copiarla como su nueva cadena.
-	\item Si el \'indice de $r$ es igual al de $u$, no hace nada y sigue minando bloques para su cadena.
-	\item Si el indice de $r$ est\'a m\'as de una posici\'on adelantada que el de $u$, abandona su \textit{Blockchain} y le pide al due\~no de $r$ la suya para copiarla como su nueva cadena.
-\end{itemize}
-
+Ya que el objetivo del \textit{Blockchain} es que todos los nodos tengan la misma cadena, y cada uno de ellos est\'a calculando bloques para agregar, estos deben comunicarse cada vez que generan o reciben un bloque. Para todos mantener la misma cadena, cada vez que un nodo mina un bloque exitosamente debe realizar un \textit{broadcast} a todos los dem\'as con toda la informaci\'on del mismo. Si el nodo que recibe el bloque no puede agregarlo a su cadena, 
+debe tomar la decisi\'on de si abandonar su cadena y pedir m\'as bloques al nodo emisor o no. 
 
 
 

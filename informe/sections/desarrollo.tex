@@ -1,5 +1,5 @@
 
-\subsection{Desarrollo}
+\section{Desarrollo}
 
 
 
@@ -10,5 +10,58 @@
 %¿Cómo afecta la demora o la pérdida en la entrega de paquetes al protocolo?
 
 %¿Cómo afecta el aumento o la disminución de la dificultad del Proof-of-Work a los conflictos entre nodos y a la convergencia? Pruebe variando la constante DEFAULT_DIFFICULTY para adquirir una intuición.
+
+Introducimos algunos par\'ametros y variables que usamos en nuestra implementaci\'on:
+\begin{itemize}
+	\item $\#nodos$: el total de nodos de la red.
+	\item rango: un identificador n\'umerico un\'ivoco para cada nodo, desde $0$ hasta $\#nodos - 1$
+	\item \texttt{MAX\_BLOCKS}: Si bien no es algo que suceda en la vida real para este tipo de algoritmos, como queremos que el nuestro termine, tenemos una cantidad m\'axima de bloques que una vez alcanzada, finaliza la ejecuci\'on del nodo.
+	\item \texttt{VALIDATION\_BLOCKS}: M\'axima cantidad de bloques que se pueden enviar en una migraci\'on de cadena.
+	\item \texttt{last\_block\_in\_chain}: puntero al \'ultimo bloque de la cadena de cada nodo. 
+\end{itemize}
+
+Para generar nuestro \textit{Blockchain} vamos a crear un bloque de \'indice $0$ para todos los nodos desde el que van a empezar a generar nuevos bloques. Luego cada nodo comenzar\'a a minar nuevos bloques con \'indices que aumentan de a uno empezando desde el $1$. Una vez alcanzada \texttt{MAX\_BLOCKS}, el nodo deja de producir nuevos bloques y si no le quedan mensajes por responder, termina su ejecuci\'on.
+
+En nuestra implementaci\'on, cada nodo tiene dos threads, uno para minar nuevos bloques y otro escucha a los otros nodos y responde en caso de ser necesario.
+
+Al minar un bloque, el nodo hace un \textit{broadcast}, es decir, lo comunica a todos los otros nodos de la red. Para no sobrecargar la red, cada nodo env\'ia primero el bloque al siguiente en rango, sigue sucesivamente y da la vuelta. Los nodos que escuchen este mensaje, pasan a validar el nuevo bloque. En nuestra implementaci\'on para hacer el \textit{broadcast} usamos la funci\'on \texttt{MPI\_SEND} que es no bloqueante, es decir, que env\'ia el mensaje y no espera respuesta de si fue o no recibido para seguir computando.
+
+El otro thread, espera a recibir un mensaje. Para esto usamos la funci\'on \texttt{MPI\_PROBE} que deja bloqueado el thread esperando a recibir alg\'un mensaje. \'Este podr\'ia ser uno de dos: 
+\begin{itemize}
+	\item \texttt{TAG\_NEW\_BLOCK:} Este mensaje significa que un nuevo bloque fue generado por otro nodo y contiene la informaci\'on del mismo. Luego se llama a \texttt{validar\_bloque}.
+	\item \texttt{TAG\_CHAIN\_HASH:} Este mensaje significa que otro nodo quiere que le env\'ie el final de mi cadena para validarlos y agregarlos a la suya. Luego, se env\'ian los \'ultimos \texttt{VALIDATION\_BLOCKS} bloques con el tag \texttt{TAG\_CHAIN\_RESPONSE}.
+\end{itemize}
+
+Para evitar condiciones de carrera entre los dos threads de un nodo utilizamos un \texttt{mutex} con la idea de sincronizar las modificaciones a \texttt{last\_block\_in\_chain}. Lo usamos en dos ocacsiones:
+
+En primer lugar, dentro de \textit{Proof-Of-Work} bloqueamos el \texttt{mutex} una vez minado un nuevo bloque. Con el mutex bloqueado, si el \'indice es el que queremos modificamos \texttt{last\_block\_in\_chain} y realizamos un broadcast (no bloqueante). Una vez finalizado este proceso, desbloqueamos.
+
+En segundo lugar, utilizamos el \texttt{mutex} cuando  vamos a recibir un mensaje con el tag \texttt{TAG\_NEW\_BLOCK}. Una vez recibido y validado, desbloqueamos.
+
+Elegimos utilizar un \texttt{mutex} bloqueante, ya que durante la validaci\'on de un bloque se puede solicitar una migración de cadena, lo cual depende de la red y, por lo tanto puede ser lento. 
+
+\subsection{Validar Bloque}
+
+%Luego, este nodo lo valida y decide si agregarlo a su cadena, descartarlo o pedir al nodo que env\'io el bloque que env\'ie algunos bloques anteriores para tomar una decisi\'on. Esto lo hace mandando un \texttt{TAG\_CHAIN\_HASH}.
+La funcion \texttt{validar\_bloque} decide si quedarse o no con el bloque recibido $r$, sabiendo que \texttt{last\_block\_in\_chain} es $u$ y teniendo en cuenta los siguientes criterios:
+
+\begin{itemize}
+	\item Si $r$ no es v\'alido (porque paso demasiado tiempo desde su creaci\'on hasta que lo recib\'i o el hash es inv\'alido) lo omite.
+	\item Si el \'indice de $r$ es 1 y el de $u$ es 0, lo agrega como nuevo \'ultimo y primero v\'alido.
+	\item Si el \'indice de $r$ es el siguiente al de $u$ y el bloque apuntado por $r$ es $u$ , lo agrega como nuevo \'ultimo.
+	\item Si el \'indice de $r$ es el siguiente al de $u$ y el bloque anterior apuntado por $r$ no es $u$, llama a \texttt{verificar\_y\_migrar}.
+	\item Si el \'indice de $r$ es igual al de $u$, no hace nada y sigue minando bloques para su cadena.
+	\item Si el indice de $r$ est\'a m\'as de una posici\'on adelantada que el de $u$, llama a \texttt{verificar\_y\_migrar}.
+\end{itemize}
+
+%le pide al due\~no de $r$ algunos bloques anteriores. Si de estos bloques existe alguno que tenga como anterior a $u$, agrego esta parte de la cadena que faltaba, si no, la descarto.
+
+\subsection{Verificar y Migrar}
+
+Le pide al due\~no de $r$ algunos bloques anteriores enviando \texttt{TAG\_CHAIN\_HASH:}. Luego 
+se bloquea hasta recibir la respuesta, en la cual llegan a lo sumo \texttt{VALIDATION\_BLOCKS}  bloques.
+Verifica los bloques recibidos, es decir, que el primero sea el recibido con anterioridad y los \'indices y los hashes sean coherentes.
+Si de estos bloques existe alguno que tenga como anterior un bloque que pertenece a la cadena actual, reconstruyo la cadena desde ese punto.
+
 
 
