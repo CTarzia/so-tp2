@@ -3,14 +3,16 @@
 
 #define HASH_SIZE 256
 #define NONCE_SIZE 10
-#define DEFAULT_DIFFICULTY 4
+#define DEFAULT_DIFFICULTY 15
 #define VALIDATION_MINUTES 1
-#define VALIDATION_BLOCKS 5
+#define VALIDATION_BLOCKS 15
 
 #include <string>
 #include <mpi.h>
 
 using namespace std;
+
+extern unsigned int  global_difficulty;
 
 //Bloque de la cadena
 struct Block {

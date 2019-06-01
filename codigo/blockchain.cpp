@@ -27,7 +27,6 @@ int main(int argc, char **argv) {
   MPI_BLOCK = new MPI_Datatype;
   define_block_data_type_for_MPI(MPI_BLOCK);
 
-
   // Control del buffering: sin buffering
   setbuf(stdout, NULL);
   setbuf(stderr, NULL);

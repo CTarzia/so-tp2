@@ -17,6 +17,10 @@ map<string,Block> node_blocks;
 
 mutex broadcast;
 
+
+unsigned int global_difficulty = DEFAULT_DIFFICULTY;
+int global_validation = VALIDATION_BLOCKS;
+
 void print() {
   Block* it = last_block_in_chain;
 
@@ -48,14 +52,14 @@ bool verificar_y_migrar_cadena(const Block *rBlock, const MPI_Status *status){
   printf("[%d] Pedi bloques a %d\n", mpi_rank,source);
 
 
-  Block *blockchain = new Block[VALIDATION_BLOCKS];
+  Block *blockchain = new Block[global_validation];
 
   //DONE: Recibir mensaje TAG_CHAIN_RESPONSE
   MPI_Status st;
   int count = -1;
 
 
-  MPI_Recv(blockchain, VALIDATION_BLOCKS, *MPI_BLOCK, source, TAG_CHAIN_RESPONSE, MPI_COMM_WORLD, &st);
+  MPI_Recv(blockchain, global_validation, *MPI_BLOCK, source, TAG_CHAIN_RESPONSE, MPI_COMM_WORLD, &st);
 
   MPI_Get_count(&st, *MPI_BLOCK, &count);
 
@@ -197,7 +201,7 @@ void* proof_of_work(void *ptr){
       //Preparar nuevo bloque
       block.index += 1;
       block.node_owner_number = mpi_rank;
-      block.difficulty = DEFAULT_DIFFICULTY;
+      block.difficulty = global_difficulty;
       block.created_at = static_cast<unsigned long int> (time(NULL));
       memcpy(block.previous_block_hash,block.block_hash,HASH_SIZE);
 
@@ -237,6 +241,23 @@ void* proof_of_work(void *ptr){
 
 int node(){
 
+
+  char * difficulty = getenv("DIFFICULTY");
+  if (difficulty) {
+      global_difficulty = atoi(difficulty);
+  }
+
+  char * validation = getenv("VALIDATION");
+  if (validation) {
+      global_validation = atoi(validation);
+  }
+
+
+  if (mpi_rank == 0) {
+      printf("Difficulty %d\n", global_difficulty);
+      printf("Validation Blocks %d\n", global_validation);
+  }
+
   //Tomar valor de mpi_rank y de nodos totales
   MPI_Comm_size(MPI_COMM_WORLD, &total_nodes);
   MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
@@ -254,7 +275,7 @@ int node(){
   //Inicializo el primer bloque
   last_block_in_chain->index = 0;
   last_block_in_chain->node_owner_number = mpi_rank;
-  last_block_in_chain->difficulty = DEFAULT_DIFFICULTY;
+  last_block_in_chain->difficulty = global_difficulty;
   last_block_in_chain->created_at = static_cast<unsigned long int> (time(NULL));
   memset(last_block_in_chain->previous_block_hash,0,HASH_SIZE);
   block_to_hash(last_block_in_chain,hash_hex_str);
@@ -270,7 +291,7 @@ int node(){
   Block rBlock;
   char hash_buf[HASH_SIZE];
 
-  Block* blockchain = new Block[VALIDATION_BLOCKS];
+  Block* blockchain = new Block[global_validation];
   MPI_Status status;
   int flag;
 
@@ -298,7 +319,7 @@ int node(){
 
         blockchain[0] = node_blocks[hash_buf];
 
-        int count = min(VALIDATION_BLOCKS , (int) blockchain[0].index );
+        int count = min(global_validation , (int) blockchain[0].index );
         for (int i = 1; i < count; i++)
         {
           blockchain[i] = node_blocks[blockchain[i-1].previous_block_hash];
@@ -322,7 +343,7 @@ int node(){
 
           blockchain[0] = node_blocks[hash_buf];
 
-          int count = min(VALIDATION_BLOCKS , (int) blockchain[0].index );
+          int count = min(global_validation , (int) blockchain[0].index );
           for (int i = 1; i < count; i++)
           {
               blockchain[i] = node_blocks[blockchain[i-1].previous_block_hash];

@@ -7,9 +7,9 @@
 #define TAG_NEW_BLOCK 10
 #define TAG_CHAIN_HASH 21
 #define TAG_CHAIN_RESPONSE 22
-#define MAX_BLOCKS 40
+#define MAX_BLOCKS 100
 #define QUANTUM 20
-#define EXTRA_TIME 1000000
+#define EXTRA_TIME 500000
 
 extern MPI_Datatype* MPI_BLOCK;
 
