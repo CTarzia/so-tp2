@@ -10,33 +10,33 @@
 % del mismo y sus soluciones.
 
 
-En este trabajo pr\'actico buscamos trabajar con sistemas distribuidos, utilizando la interfaz de env\'io de mensajes MPI. Particularmente implementaremos un \textit{Blockchain}, es decir, una cadena de bloques enlazados que busca evitar modificaciones a trav\'es de un proceso de consenso.
+En este trabajo práctico buscamos trabajar con sistemas distribuidos, utilizando la interfaz de envío de mensajes MPI. Particularmente implementaremos un \textit{Blockchain}, es decir, una cadena de bloques enlazados que busca evitar modificaciones a través de un proceso de consenso.
 
 \subsection{Blockchain}
 El \textit{Blockchain} consiste en un conjunto de bloques enlazados como los de la Figura \ref{fig:blockchain}, en los que cada uno tiene:
 \begin{itemize}
-	\item \textit{\'Indice:} El n\'umero de bloque.
-	\item \textit{Due\~no:} El identificador de qui\'en cre\'o el bloque.
-	\item \textit{Dificultad:} La cantidad de ceros que debe tener el inicio del hash.
-	\item \textit{Fecha de Creaci\'on}
-	\item \textit{nonce:} String para resolver el \textit{Proof-of-Work}
-	\item \textit{Hash del bloque anterior}
-	\item \textit{Hash del bloque}
+	\item \texttt{\'Indice:} El número de bloque.
+	\item \texttt{Dueño:} El identificador de quién creó el bloque.
+	\item \texttt{Dificultad:} La cantidad de ceros que debe tener el inicio del hash.
+	\item \texttt{Fecha de Creación}
+	\item \texttt{nonce:} String para resolver el \textit{Proof-of-Work}
+	\item \texttt{Hash del bloque anterior}
+	\item \texttt{Hash del bloque}
 \end{itemize}
 
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.7\linewidth]{img/blockchain}
-	\caption[Representaci\'on gr\'afica de un \textit{Blockchain}.]{}
+	\caption{Representación gráfica de un \textit{Blockchain}.}
 	\label{fig:blockchain}
 \end{figure}
 
 
-Para conseguir un bloque, cada nodo del sistema distribuido debe \textit{minarlo}, es decir, debe superar una prueba con un costo de c\'omputo. A esta se la llama \textit{Proof-of-Work (POW)}, y consiste en variar el campo \texttt{nonce} hasta que la representaci\'on del hash empiece con al menos la cantidad de ceros que indica \texttt{dificultad}. 
+Para conseguir un bloque, cada nodo del sistema distribuido debe \textit{minarlo}, es decir, debe superar una prueba con un costo de cómputo. A esta se la llama \textit{Proof-of-Work (POW)}, y consiste en variar el campo \texttt{nonce} hasta que la representación del hash empiece con al menos la cantidad de ceros que indica \texttt{dificultad}. 
 
 \subsection{Consenso}
-Ya que el objetivo del \textit{Blockchain} es que todos los nodos tengan la misma cadena, y cada uno de ellos est\'a calculando bloques para agregar, estos deben comunicarse cada vez que generan o reciben un bloque. Para todos mantener la misma cadena, cada vez que un nodo mina un bloque exitosamente debe realizar un \textit{broadcast} a todos los dem\'as con toda la informaci\'on del mismo. Si el nodo que recibe el bloque no puede agregarlo a su cadena, 
-debe tomar la decisi\'on de si abandonar su cadena y pedir m\'as bloques al nodo emisor o no. 
+Ya que el objetivo del \textit{Blockchain} es que todos los nodos tengan la misma cadena, y cada uno de ellos está calculando bloques para agregar, estos deben comunicarse cada vez que generan o reciben un bloque. Para todos mantener la misma cadena, cada vez que un nodo mina un bloque exitosamente debe realizar un \textit{broadcast} a todos los demás con toda la información del mismo. Si el nodo que recibe el bloque no puede agregarlo a su cadena, 
+debe tomar la decisión de si abandonar su cadena y pedir más bloques al nodo emisor o no. 
 
 
 

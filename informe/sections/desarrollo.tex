@@ -5,63 +5,98 @@
 
 %Importante: Desarrolle un análisis del protocolo descrito en este trabajo que responda, al menos, a las siguientes preguntas:
 
-%¿Puede este protocolo producir dos o más blockchains que nunca converjan?
-
-%¿Cómo afecta la demora o la pérdida en la entrega de paquetes al protocolo?
-
-%¿Cómo afecta el aumento o la disminución de la dificultad del Proof-of-Work a los conflictos entre nodos y a la convergencia? Pruebe variando la constante DEFAULT_DIFFICULTY para adquirir una intuición.
-
-Introducimos algunos par\'ametros y variables que usamos en nuestra implementaci\'on:
+Introducimos algunos parámetros y variables que usamos en nuestra implementación:
 \begin{itemize}
 	\item $\#nodos$: el total de nodos de la red.
-	\item rango: un identificador n\'umerico un\'ivoco para cada nodo, desde $0$ hasta $\#nodos - 1$
-	\item \texttt{MAX\_BLOCKS}: Si bien no es algo que suceda en la vida real para este tipo de algoritmos, como queremos que el nuestro termine, tenemos una cantidad m\'axima de bloques que una vez alcanzada, finaliza la ejecuci\'on del nodo.
-	\item \texttt{VALIDATION\_BLOCKS}: M\'axima cantidad de bloques que se pueden enviar en una migraci\'on de cadena.
-	\item \texttt{last\_block\_in\_chain}: puntero al \'ultimo bloque de la cadena de cada nodo. 
+	\item \texttt{rango}: un identificador numérico unívoco para cada nodo, desde $0$ hasta $\#nodos - 1$
+	\item \texttt{MAX\_BLOCKS}: Si bien no es algo que suceda en la vida real para este tipo de algoritmos, como queremos que el nuestro termine, tenemos una cantidad máxima de bloques que una vez alcanzada, finaliza la ejecución del nodo.
+	\item \texttt{VALIDATION\_BLOCKS}: Máxima cantidad de bloques que se pueden enviar en una migración de cadena.
+	\item \texttt{last\_block\_in\_chain}: puntero al último bloque de la cadena de cada nodo. 
 \end{itemize}
 
-Para generar nuestro \textit{Blockchain} vamos a crear un bloque de \'indice $0$ para todos los nodos desde el que van a empezar a generar nuevos bloques. Luego cada nodo comenzar\'a a minar nuevos bloques con \'indices que aumentan de a uno empezando desde el $1$. Una vez alcanzada \texttt{MAX\_BLOCKS}, el nodo deja de producir nuevos bloques y si no le quedan mensajes por responder, termina su ejecuci\'on.
+Para generar nuestro \textit{Blockchain} vamos a crear un bloque de índice $0$ para todos los nodos desde el que van a empezar a generar nuevos bloques. Luego cada nodo comenzará a minar nuevos bloques con índices que aumentan de a uno empezando desde el $1$. Una vez alcanzada \texttt{MAX\_BLOCKS}, el nodo deja de producir nuevos bloques y si no le quedan mensajes por responder, termina su ejecución.
 
-En nuestra implementaci\'on, cada nodo tiene dos threads, uno para minar nuevos bloques y otro escucha a los otros nodos y responde en caso de ser necesario.
+En nuestra implementación, cada nodo tiene dos threads, uno para minar nuevos bloques y otro escucha a los otros nodos y responde en caso de ser necesario.
 
-Al minar un bloque, el nodo hace un \textit{broadcast}, es decir, lo comunica a todos los otros nodos de la red. Para no sobrecargar la red, cada nodo env\'ia primero el bloque al siguiente en rango, sigue sucesivamente y da la vuelta. Los nodos que escuchen este mensaje, pasan a validar el nuevo bloque. En nuestra implementaci\'on para hacer el \textit{broadcast} usamos la funci\'on \texttt{MPI\_SEND} que es no bloqueante, es decir, que env\'ia el mensaje y no espera respuesta de si fue o no recibido para seguir computando.
+Al minar un bloque, el nodo hace un \textit{broadcast}, es decir, lo comunica a todos los otros nodos de la red. Para no sobrecargar la red, cada nodo envía los mensajes de la siguiente manera:
 
-El otro thread, espera a recibir un mensaje. Para esto usamos la funci\'on \texttt{MPI\_PROBE} que deja bloqueado el thread esperando a recibir alg\'un mensaje. \'Este podr\'ia ser uno de dos: 
+\[
+(\forall i : 1 .. \#nodos-1) \text{ enviar mensaje al nodo } i \% rango
+\]
+
+
+Los nodos que escuchen este mensaje, pasan a validar el nuevo bloque. En nuestra implementación para hacer el \textit{broadcast} usamos la función \texttt{MPI\_SEND} que es no bloqueante, es decir, que envía el mensaje y no espera respuesta de si fue o no recibido para seguir computando.
+
+El otro thread, espera a recibir un mensaje. Para esto usamos la función \texttt{MPI\_PROBE} que deja bloqueado el thread esperando a recibir algún mensaje. \'Este podría ser uno de dos: 
 \begin{itemize}
-	\item \texttt{TAG\_NEW\_BLOCK:} Este mensaje significa que un nuevo bloque fue generado por otro nodo y contiene la informaci\'on del mismo. Luego se llama a \texttt{validar\_bloque}.
-	\item \texttt{TAG\_CHAIN\_HASH:} Este mensaje significa que otro nodo quiere que le env\'ie el final de mi cadena para validarlos y agregarlos a la suya. Luego, se env\'ian los \'ultimos \texttt{VALIDATION\_BLOCKS} bloques con el tag \texttt{TAG\_CHAIN\_RESPONSE}.
+	\item \texttt{TAG\_NEW\_BLOCK:} Este mensaje significa que un nuevo bloque fue generado por otro nodo y contiene la información del mismo. Luego se llama a \texttt{validar\_bloque}.
+	\item \texttt{TAG\_CHAIN\_HASH:} Este mensaje significa que otro nodo quiere que le envíe el final de mi cadena para validarlos y agregarlos a la suya. Luego, se envían los últimos \texttt{VALIDATION\_BLOCKS} bloques con el tag \texttt{TAG\_CHAIN\_RESPONSE}.
 \end{itemize}
 
-Para evitar condiciones de carrera entre los dos threads de un nodo utilizamos un \texttt{mutex} con la idea de sincronizar las modificaciones a \texttt{last\_block\_in\_chain}. Lo usamos en dos ocacsiones:
+Para evitar condiciones de carrera entre los dos threads de un nodo utilizamos un \texttt{mutex} con la idea de sincronizar las modificaciones a \texttt{last\_block\_in\_chain}. Lo usamos en dos ocasiones:
 
-En primer lugar, dentro de \textit{Proof-Of-Work} bloqueamos el \texttt{mutex} una vez minado un nuevo bloque. Con el mutex bloqueado, si el \'indice es el que queremos modificamos \texttt{last\_block\_in\_chain} y realizamos un broadcast (no bloqueante). Una vez finalizado este proceso, desbloqueamos.
+En primer lugar, dentro de \textit{Proof-Of-Work} bloqueamos el \texttt{mutex} una vez minado un nuevo bloque. Con el mutex bloqueado, si el índice es el que queremos modificamos \texttt{last\_block\_in\_chain} y realizamos un broadcast (no bloqueante). Una vez finalizado este proceso, desbloqueamos.
 
 En segundo lugar, utilizamos el \texttt{mutex} cuando  vamos a recibir un mensaje con el tag \texttt{TAG\_NEW\_BLOCK}. Una vez recibido y validado, desbloqueamos.
 
-Elegimos utilizar un \texttt{mutex} bloqueante, ya que durante la validaci\'on de un bloque se puede solicitar una migración de cadena, lo cual depende de la red y, por lo tanto puede ser lento. 
+Elegimos utilizar un \texttt{mutex} bloqueante, ya que durante la validación de un bloque se puede solicitar una migración de cadena, lo cual depende de la red y, por lo tanto puede ser lento. 
 
 \subsection{Validar Bloque}
 
-%Luego, este nodo lo valida y decide si agregarlo a su cadena, descartarlo o pedir al nodo que env\'io el bloque que env\'ie algunos bloques anteriores para tomar una decisi\'on. Esto lo hace mandando un \texttt{TAG\_CHAIN\_HASH}.
-La funcion \texttt{validar\_bloque} decide si quedarse o no con el bloque recibido $r$, sabiendo que \texttt{last\_block\_in\_chain} es $u$ y teniendo en cuenta los siguientes criterios:
+%Luego, este nodo lo valida y decide si agregarlo a su cadena, descartarlo o pedir al nodo que envío el bloque que envíe algunos bloques anteriores para tomar una decisión. Esto lo hace mandando un \texttt{TAG\_CHAIN\_HASH}.
+La función \texttt{validar\_bloque} decide si quedarse o no con el bloque recibido $r$, sabiendo que \texttt{last\_block\_in\_chain} es $u$ y teniendo en cuenta los siguientes criterios:
 
 \begin{itemize}
-	\item Si $r$ no es v\'alido (porque paso demasiado tiempo desde su creaci\'on hasta que lo recib\'i o el hash es inv\'alido) lo omite.
-	\item Si el \'indice de $r$ es 1 y el de $u$ es 0, lo agrega como nuevo \'ultimo y primero v\'alido.
-	\item Si el \'indice de $r$ es el siguiente al de $u$ y el bloque apuntado por $r$ es $u$ , lo agrega como nuevo \'ultimo.
-	\item Si el \'indice de $r$ es el siguiente al de $u$ y el bloque anterior apuntado por $r$ no es $u$, llama a \texttt{verificar\_y\_migrar}.
-	\item Si el \'indice de $r$ es igual al de $u$, no hace nada y sigue minando bloques para su cadena.
-	\item Si el indice de $r$ est\'a m\'as de una posici\'on adelantada que el de $u$, llama a \texttt{verificar\_y\_migrar}.
+	\item Si $r$ no es válido (porque paso demasiado tiempo desde su creación hasta que lo recibí o el hash es inválido) lo omite.
+	\item Si el índice de $r$ es 1 y el de $u$ es 0, lo agrega como nuevo último y primero válido.
+	\item Si el índice de $r$ es el siguiente al de $u$ y el bloque apuntado por $r$ es $u$ , lo agrega como nuevo último.
+	\item Si el índice de $r$ es el siguiente al de $u$ y el bloque anterior apuntado por $r$ no es $u$, llama a \texttt{verificar\_y\_migrar}.
+	\item Si el índice de $r$ es igual al de $u$, no hace nada y sigue minando bloques para su cadena.
+	\item Si el índice de $r$ está más de una posición adelantada que el de $u$, llama a \texttt{verificar\_y\_migrar}.
 \end{itemize}
 
-%le pide al due\~no de $r$ algunos bloques anteriores. Si de estos bloques existe alguno que tenga como anterior a $u$, agrego esta parte de la cadena que faltaba, si no, la descarto.
+%le pide al dueño de $r$ algunos bloques anteriores. Si de estos bloques existe alguno que tenga como anterior a $u$, agrego esta parte de la cadena que faltaba, si no, la descarto.
 
 \subsection{Verificar y Migrar}
 
-Le pide al due\~no de $r$ algunos bloques anteriores enviando \texttt{TAG\_CHAIN\_HASH:}. Luego 
+Le pide al dueño de $r$ algunos bloques anteriores enviando \texttt{TAG\_CHAIN\_HASH}. Luego 
 se bloquea hasta recibir la respuesta, en la cual llegan a lo sumo \texttt{VALIDATION\_BLOCKS}  bloques.
-Verifica los bloques recibidos, es decir, que el primero sea el recibido con anterioridad y los \'indices y los hashes sean coherentes.
+Verifica los bloques recibidos, es decir, que el primero sea el recibido con anterioridad y los índices y los hashes sean coherentes.
 Si de estos bloques existe alguno que tenga como anterior un bloque que pertenece a la cadena actual, reconstruyo la cadena desde ese punto.
+
+
+\subsection{Análisis del Protocolo}
+En esta sección vamos a discutir las características y el funcionamiento del protocolo detallado con anterioridad.
+
+%pregunta 1: ¿Puede este protocolo producir dos o más blockchains que nunca converjan?
+En primer lugar, nos preguntamos si se logra el consenso entre los nodos sobre la cadena obtenida. Esto no es una pregunta con una respuesta directa ya que depende de muchas variables. Cuanto más antiguo es un bloque es más probable que lo tengan todos los nodos, ya que hubo más tiempo para que hayan conflictos y se descarten las cadenas divergentes. Por otro lado, los bloques generados recientemente pueden no haber sido aceptados por el resto porque en caso de conflicto suave los nodos prefieren los bloques propios. Debido a esto, ya que nosotros pusimos un limite a la cantidad de bloques de la cadena, los últimos de esta pueden no ser los mismos para todos los nodos. En la vida real esperamos que no ocurra esto porque se siguen minando bloques por tiempo indeterminado y los bloques nuevos eventualmente pasan a ser viejos. 
+
+Sin embargo, existe un caso borde en el que todos los nodos generan bloques al mismo tiempo, lo que causa que todos los conflictos sean suaves y que cada uno decida conservar su propia cadena. Notemos que esto es realmente improbable a largo plazo.
+
+%pregunta 2: ¿Cómo afecta la demora o la pérdida en la entrega de paquetes al protocolo?
+En segundo lugar, analizamos cómo se comporta el protocolo si el funcionamiento de la red no es óptimo. Consideremos el caso en el que eventualmente un conjunto de nodos queda aislado del resto. Si esto ocurre, la cadena consensuada hasta ese momento es la misma para todos los nodos, pero a partir de él cada conjunto se comporta como una red independiente. 
+
+Otra situación posible es que haya demora en la entrega de paquetes. Si esto ocurre en los mensajes con tag \texttt{TAG\_NEW\_BLOCK}, puede causar una mayor cantidad de conflictos, en cuyo caso, hay bloques que se desperdician. En definitiva, solo sobrevive un bloque con cada índice y el resto de los generados con el mismo son descartados. 
+
+El protocolo es resistente a la pérdida de mensajes con el tag \texttt{TAG\_NEW\_BLOCK}. El bloque va a ser descartado eventualmente por quien lo produjo.
+
+Veamos el caso en el que los mensajes de un único nodo tienen demora. En este caso, es poco probable que la cadena final tenga bloques de este, ya que sus bloques generados llegarían tarde y probablemente sean descartados.
+
+Si los mensajes que se demoran tienen tag \texttt{TAG\_CHAIN\_HASH}, el nodo que lo envía se queda bloqueado hasta recibir la respuesta marcada con \texttt{TAG\_CHAIN\_RESPONSE}. Si alguno de estos dos mensajes se pierde, el nodo quedaría bloqueado para siempre.
+
+%pregunta 3: ¿Cómo afecta el aumento o la disminución de la dificultad del Proof-of-Work a los conflictos entre nodos y a la convergencia? Pruebe variando la constante DEFAULT_DIFFICULTY para adquirir una intuición.
+
+Por último, nos preguntamos como afecta a nuestro protocolo la variación de la dificultad del POW. Esperamos que al disminuirla, los bloques se generen más rápidamente, lo cual a su vez, genera un mayor tráfico de mensajes y por lo tanto, más conflictos. Vamos a experimentar cómo afecta la dificultad al tiempo final de ejecución.
+
+Teniendo en cuenta que los hashes se consiguen al azar, la probabilidad de encontrar un hash favorable se disminuye a la mitad por cada cero requerido que se agrega. Luego el tiempo esperado de generación de un bloque es exponencial con respecto a la dificultad.
+
+
+
+
+
+
+
+
 
 
 
