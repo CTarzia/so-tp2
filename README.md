@@ -1,1 +1,1 @@
-# so-tp2
+## Este TP fue hecho con MPICH
